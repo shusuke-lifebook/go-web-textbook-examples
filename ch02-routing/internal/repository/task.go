@@ -17,11 +17,13 @@ func NewInMemoryTaskRepo() *InMemoryTaskRepo {
 	return &InMemoryTaskRepo{store: map[int64]*domain.Task{}}
 }
 
-func (r *InMemoryTaskRepo) Create(_ context.Context, id int64) (*domain.Task, bool) {
+func (r *InMemoryTaskRepo) Create(_ context.Context, t *domain.Task) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	t, ok := r.store[id]
-	return t, ok
+	r.nextID++
+	t.ID = r.nextID
+	r.store[t.ID] = t
+	return nil
 }
 
 func (r *InMemoryTaskRepo) Get(_ context.Context, id int64) (*domain.Task, bool) {
@@ -31,7 +33,9 @@ func (r *InMemoryTaskRepo) Get(_ context.Context, id int64) (*domain.Task, bool)
 	return t, ok
 }
 
-func (r *InMemoryTaskRepo) List(_ context.Context, status string, limit int) []*domain.Task {
+func (r *InMemoryTaskRepo) List(
+	_ context.Context, status string, limit int,
+) []*domain.Task {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make([]*domain.Task, 0, limit)
@@ -47,7 +51,9 @@ func (r *InMemoryTaskRepo) List(_ context.Context, status string, limit int) []*
 	return out
 }
 
-func (r *InMemoryTaskRepo) Update(_ context.Context, id int64, fn func(*domain.Task)) (*domain.Task, bool) {
+func (r *InMemoryTaskRepo) Update(
+	_ context.Context, id int64, fn func(*domain.Task),
+) (*domain.Task, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	t, ok := r.store[id]
