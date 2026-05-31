@@ -31,6 +31,8 @@ vendor/
 # --- Temporary files ---
 *.tmp
 *.temp
+# --- tmp directory
+tmp/
 
 # --- OS-specific files ---
 # macOS

@@ -2,7 +2,7 @@
 package router
 
 import (
-	"ch01-gin-intro/ch01-gin-intro/internal/handler"
+	"ch01-gin-intro/internal/handler"
 
 	"github.com/gin-gonic/gin"
 )

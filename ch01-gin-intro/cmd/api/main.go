@@ -1,7 +1,7 @@
 package main
 
 import (
-	"ch01-gin-intro/ch01-gin-intro/internal/router"
+	"ch01-gin-intro/internal/router"
 	"log/slog"
 	"os"
 )
