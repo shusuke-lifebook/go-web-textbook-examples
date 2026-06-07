@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ch04-postgres-sqlc/internal/db"
 	"ch04-postgres-sqlc/internal/handler"
 	mw "ch04-postgres-sqlc/internal/middleware"
 	"ch04-postgres-sqlc/internal/repository"
@@ -19,13 +20,35 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		dsn = "postgres://app:app@localhost:5432/app?sslmode=disable"
+	}
+
+	pool, err := db.NewPool(ctx, dsn)
+	if err != nil {
+		logger.Error("init pool", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	pingCtx, pingCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer pingCancel()
+	if err := pool.Ping(pingCtx); err != nil {
+		logger.Error("ping db", "error", err)
+		os.Exit(1)
+	}
+
 	repo := repository.NewInMemoryTaskRepo()
 	taskUsecase := usecase.New(repo)
 	th := handler.NewTaskHandler(taskUsecase)
 
 	limiter := mw.NewIPRateLimiter(rate.Limit(10), 20)
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
+	// ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	// defer cancel()
 	go limiter.StartGC(ctx, 5*time.Minute, 1*time.Hour)
 
 	r := router.New(router.Deps{
