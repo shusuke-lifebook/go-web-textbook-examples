@@ -17,6 +17,11 @@
   - go get github.com/gin-contrib/gzip
 - [pgx](https://github.com/jackc/pgx)
   - go get github.com/jackc/pgx/v5
+- [golang-migrate](https://github.com/golang-migrate/migrate)
+  - go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1
+  - (例)
+    - migrate create -ext sql -dir internal/db/migrations -seq create_users
+    - migrate create -ext sql -dir internal/db/migrations -seq create_tasks
 
 ## Ch04-postgres-sqlc
 - Postgresql(Docker)の起動
