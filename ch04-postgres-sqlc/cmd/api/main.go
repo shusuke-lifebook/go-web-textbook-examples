@@ -42,6 +42,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 開発環境向け：起動時にマイグレーションを流す
+	if os.Getenv("RUN_MIGRATIONS") == "true" {
+		if err := db.RunMigrations(dsn); err != nil {
+			logger.Error("run migrations", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	repo := repository.NewInMemoryTaskRepo()
 	taskUsecase := usecase.New(repo)
 	th := handler.NewTaskHandler(taskUsecase)

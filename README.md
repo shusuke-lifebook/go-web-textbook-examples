@@ -28,3 +28,7 @@
   - docker compose up -d --wait
 - Postgresql(Docker)の接続
   - psql postgresql://app:app@localhost:5432/app
+- migrate -path internal/db/migrations -database 'postgres://app:app@localhost:5432/app?sslmode=disable' up
+  - 実行結果
+    - 1/u create_users (58.79917ms)
+    - 2/u create_tasks (126.458135ms)
