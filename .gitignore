@@ -51,6 +51,7 @@ Desktop.ini
 !.vscode/extensions.json
 !.vscode/launch.json
 !.vscode/tasks.json
+!.vscode/sqlc.schema.json
 
 # --- JetBrains (GoLand) ---
 .idea/

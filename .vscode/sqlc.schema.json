@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "sqlc configuration",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1", "2"]
+    },
+    "sql": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "engine": {
+            "type": "string",
+            "enum": ["postgresql", "mysql", "sqlite", "sqlserver"]
+          },
+          "schema": {
+            "type": ["string", "array"]
+          },
+          "queries": {
+            "type": ["string", "array"]
+          },
+          "gen": {
+            "type": "object",
+            "properties": {
+              "go": {
+                "type": "object",
+                "properties": {
+                  "package": { "type": "string" },
+                  "out": { "type": "string" },
+                  "sql_package": { "type": "string" },
+                  "emit_interface": { "type": "boolean" },
+                  "emit_empty_slices": { "type": "boolean" },
+                  "emit_json_tags": { "type": "boolean" },
+                  "emit_pointers_for_null_types": { "type": "boolean" },
+                  "overrides": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "db_type": { "type": "string" },
+                        "go_type": { "type": "string" }
+                      },
+                      "required": ["db_type", "go_type"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": ["engine", "schema", "queries"]
+      }
+    }
+  },
+  "required": ["version", "sql"]
+}

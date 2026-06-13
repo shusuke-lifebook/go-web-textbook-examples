@@ -10,14 +10,14 @@
     "analyses": {
       "unusedparams": true,
       "shadow": true,
-      "nilness": true,
-    },
+      "nilness": true
+    }
   },
 
   // --- フォーマット & インポート整理 ---
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit",
+    "source.organizeImports": "explicit"
   },
   "go.formatTool": "gofmt",
   "go.formatFlags": [],
@@ -31,7 +31,7 @@
 
   //  --- Code Runner 設定 ---
   "code-runner.executorMap": {
-    "go": "cd $dir && go run .",
+    "go": "cd $dir && go run ."
   },
   "code-runner.runInTerminal": true,
 
@@ -42,7 +42,7 @@
     "**/vendor": true,
     "**/.cache": true,
     "**/go.sum": false,
-    "**/go.work.sum": false,
+    "**/go.work.sum": false
   },
   "files.eol": "\n",
   "files.encoding": "utf8",
@@ -50,7 +50,7 @@
   // --- ターミナル設定 (WSL2 Ubuntu) ---
   "terminal.integrated.env.linux": {
     "GO111MODULE": "on",
-    "PATH": "${env:HOME}/.local/share/mise/shims:${env:PATH}",
+    "PATH": "${env:HOME}/.local/share/mise/shims:${env:PATH}"
   },
 
   // --- VSCode UI カスタマイズ ---
@@ -70,9 +70,52 @@
     "editor.quickSuggestions": {
       "other": false,
       "comments": false,
-      "strings": false,
+      "strings": false
     },
     "editor.renderWhitespace": "boundary",
-    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one"
   },
+
+  // --- YAML 設定（sqlc 最適化） ---
+  "yaml.format.enable": true,
+  "yaml.format.singleQuote": false,
+  "yaml.format.bracketSpacing": true,
+  "yaml.format.printWidth": 100,
+
+  "yaml.validate": true,
+  "yaml.hover": true,
+  "yaml.completion": true,
+
+  // Docker Compose
+  "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": [
+    "docker-compose.yml",
+    "docker-compose.yaml"
+  ],
+
+  // GitHub Actions
+  "https://json.schemastore.org/github-workflow.json": [
+    ".github/workflows/*.yml",
+    ".github/workflows/*.yaml"
+  ],
+
+  // Kubernetes（必要なら）
+  "kubernetes": ["**/k8s/**/*.yaml", "**/k8s/**/*.yml"],
+
+  // --- YAML 設定（sqlc ローカルスキーマ） ---
+  "yaml.schemas": {
+    "./.vscode/sqlc.schema.json": [
+      "sqlc.yaml",
+      "sqlc.yml",
+      "**/sqlc.yaml",
+      "**/sqlc.yml"
+    ]
+  },
+
+  // YAML 専用エディタ設定
+  "[yaml]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  }
 }
