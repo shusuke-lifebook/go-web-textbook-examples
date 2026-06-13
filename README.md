@@ -22,6 +22,7 @@
   - (例)
     - migrate create -ext sql -dir internal/db/migrations -seq create_users
     - migrate create -ext sql -dir internal/db/migrations -seq create_tasks
+    - migrate create -ext sql -dir internal/db/migrations -seq create_audits
 - [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html)
   - go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
   - go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
