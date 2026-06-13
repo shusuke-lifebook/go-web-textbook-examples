@@ -52,8 +52,8 @@ func main() {
 
 	repo := repository.NewPostgresTaskRepo(pool)
 	tx := repository.NewTxRunner(pool)
-	taskUsecase := usecase.New(repo, tx)
-	th := handler.NewTaskHandler(taskUsecase)
+	uc := usecase.New(repo, tx)
+	th := handler.NewTaskHandler(uc)
 
 	limiter := mw.NewIPRateLimiter(rate.Limit(10), 20)
 	// ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

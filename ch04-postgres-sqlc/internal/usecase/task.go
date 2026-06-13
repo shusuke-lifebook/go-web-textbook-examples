@@ -2,6 +2,7 @@
 package usecase
 
 import (
+	dbgen "ch04-postgres-sqlc/internal/db/gen"
 	"ch04-postgres-sqlc/internal/domain"
 	"ch04-postgres-sqlc/internal/repository"
 	"context"
@@ -31,6 +32,29 @@ func (u *TaskUsecase) Create(ctx context.Context, userID int64, title string) (d
 		Title:  title,
 		Status: domain.StatusOpen,
 	})
+}
+
+func (u *TaskUsecase) CreateWithAudit(ctx context.Context, userID int64, title string) (domain.Task, error) {
+	var created domain.Task
+	err := u.tx.Run(ctx, func(ctx context.Context, q *dbgen.Queries) error {
+		row, err := q.CreateTask(ctx, dbgen.CreateTaskParams{
+			UserID: userID,
+			Title:  title,
+			Status: string(domain.StatusOpen),
+		})
+		if err != nil {
+			return err
+		}
+		created = repository.ToDomain(row)
+		return q.InsertAudit(ctx, dbgen.InsertAuditParams{
+			Action: "task_create",
+			TaskID: row.ID,
+		})
+	})
+	if err != nil {
+		return domain.Task{}, err
+	}
+	return created, nil
 }
 
 func (u *TaskUsecase) Get(ctx context.Context, userID, id int64) (domain.Task, error) {
