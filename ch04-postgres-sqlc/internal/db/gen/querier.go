@@ -12,6 +12,7 @@ type Querier interface {
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	DeleteTask(ctx context.Context, arg DeleteTaskParams) error
 	GetTask(ctx context.Context, arg GetTaskParams) (Task, error)
+	InsertAudit(ctx context.Context, arg InsertAuditParams) error
 	ListTasksByUser(ctx context.Context, arg ListTasksByUserParams) ([]Task, error)
 	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) (int64, error)
 }

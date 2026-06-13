@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+type Audit struct {
+	ID        int64     `json:"id"`
+	Action    string    `json:"action"`
+	TaskID    int64     `json:"task_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Task struct {
 	ID        int64     `json:"id"`
 	UserID    int64     `json:"user_id"`
