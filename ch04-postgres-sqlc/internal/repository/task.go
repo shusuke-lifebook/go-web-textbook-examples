@@ -2,74 +2,100 @@
 package repository
 
 import (
+	dbgen "ch04-postgres-sqlc/internal/db/gen"
 	"ch04-postgres-sqlc/internal/domain"
 	"context"
-	"sync"
+	"fmt"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type InMemoryTaskRepo struct {
-	mu     sync.Mutex
-	nextID int64
-	store  map[int64]*domain.Task
+type PostgresTaskRepo struct {
+	pool    *pgxpool.Pool
+	queries *dbgen.Queries
 }
 
-func NewInMemoryTaskRepo() *InMemoryTaskRepo {
-	return &InMemoryTaskRepo{store: map[int64]*domain.Task{}}
+func NewPostgresTaskRepo(pool *pgxpool.Pool) *PostgresTaskRepo {
+	return &PostgresTaskRepo{
+		pool:    pool,
+		queries: dbgen.New(pool),
+	}
 }
 
-func (r *InMemoryTaskRepo) Create(_ context.Context, t *domain.Task) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.nextID++
-	t.ID = r.nextID
-	r.store[t.ID] = t
+func (r *PostgresTaskRepo) Create(ctx context.Context, t domain.Task) (domain.Task, error) {
+	row, err := r.queries.CreateTask(ctx, dbgen.CreateTaskParams{
+		UserID: t.UserID,
+		Title:  t.Title,
+		Status: string(t.Status),
+	})
+	if err != nil {
+		return domain.Task{}, mapPgError(err)
+	}
+	return toDomain(row), nil
+}
+
+func (r *PostgresTaskRepo) GetByID(ctx context.Context, userID, id int64) (domain.Task, error) {
+	row, err := r.queries.GetTask(ctx, dbgen.GetTaskParams{
+		ID: id, UserID: userID,
+	})
+	if err != nil {
+		return domain.Task{}, mapPgError(err)
+	}
+	return toDomain(row), nil
+
+}
+
+func toDomain(t dbgen.Task) domain.Task {
+	return domain.Task{
+		ID:        t.ID,
+		UserID:    t.UserID,
+		Title:     t.Title,
+		Status:    domain.Status(t.Status),
+		CreatedAt: t.CreatedAt,
+		UpdatedAt: t.UpdatedAt,
+	}
+}
+
+// ToDomain は toDomain のエクスポート版。usecase など他パッケージから呼ぶ
+func ToDomain(t dbgen.Task) domain.Task {
+	return toDomain(t)
+}
+
+func (r *PostgresTaskRepo) ListByUser(ctx context.Context, userID int64, limit, offset int32) ([]domain.Task, error) {
+	rows, err := r.queries.ListTasksByUser(ctx, dbgen.ListTasksByUserParams{
+		UserID: userID,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list tasks: %w", err)
+	}
+	out := make([]domain.Task, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, toDomain(row))
+	}
+	return out, nil
+}
+
+func (r *PostgresTaskRepo) UpdateStatus(ctx context.Context, userID, id int64, s domain.Status) error {
+	rows, err := r.queries.UpdateTaskStatus(ctx, dbgen.UpdateTaskStatusParams{
+		Status: string(s),
+		ID:     id,
+		UserID: userID,
+	})
+	if err != nil {
+		return mapPgError(err)
+	}
+	if rows == 0 {
+		return domain.ErrTaskNotFound
+
+	}
 	return nil
 }
 
-func (r *InMemoryTaskRepo) Get(_ context.Context, id int64) (*domain.Task, bool) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	t, ok := r.store[id]
-	return t, ok
-}
-
-func (r *InMemoryTaskRepo) List(
-	_ context.Context, status string, limit int,
-) []*domain.Task {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	out := make([]*domain.Task, 0, limit)
-	for _, t := range r.store {
-		if status != "all" && t.Status != status {
-			continue
-		}
-		out = append(out, t)
-		if len(out) >= limit {
-			break
-		}
+func (r *PostgresTaskRepo) Delete(ctx context.Context, userID, id int64) error {
+	if err := r.queries.DeleteTask(ctx, dbgen.DeleteTaskParams{ID: id, UserID: userID}); err != nil {
+		return mapPgConnError(err)
 	}
-	return out
-}
-
-func (r *InMemoryTaskRepo) Update(
-	_ context.Context, id int64, fn func(*domain.Task),
-) (*domain.Task, bool) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	t, ok := r.store[id]
-	if !ok {
-		return nil, false
-	}
-	fn(t)
-	return t, true
-}
-
-func (r *InMemoryTaskRepo) Delete(_ context.Context, id int64) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if _, ok := r.store[id]; !ok {
-		return false
-	}
-	delete(r.store, id)
-	return true
+	return nil
 }

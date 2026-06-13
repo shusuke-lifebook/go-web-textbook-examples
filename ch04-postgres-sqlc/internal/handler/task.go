@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"ch04-postgres-sqlc/internal/domain"
 	"ch04-postgres-sqlc/internal/usecase"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -17,21 +19,19 @@ func NewTaskHandler(u *usecase.TaskUsecase) *TaskHandler {
 }
 
 type CreateTaskRequest struct {
-	Title    string `json:"title"    binding:"required,max=100"`
-	Body     string `json:"body"     binding:"max=2000"`
-	Priority int    `json:"priority" binding:"gte=0,lte=3"`
+	Title string `json:"title" binding:"required,max=100"`
 }
 
 type UpdateTaskRequest struct {
-	Title    *string `json:"title,omitempty"    binding:"omitempty,max=100"`
-	Body     *string `json:"body,omitempty"     binding:"omitempty,max=2000"`
-	Priority *int    `json:"priority,omitempty" binding:"omitempty,gte=0,lte=3"`
-	Status   *string `json:"status,omitempty"   binding:"omitempty,oneof=open done"`
+	Status string `json:"status" binding:"required,oneof=open in_progress done"`
 }
 
 type TaskIDParam struct {
 	ID int64 `uri:"id" binding:"required,gt=0"`
 }
+
+// devUserID は Ch 07 で認証を導入するまでの開発用固定ユーザー ID
+const devUserID int64 = 1
 
 // Create は新規タスクを作成し、作成リソースの URL を Location に書く
 func (h *TaskHandler) Create(c *gin.Context) {
@@ -41,27 +41,42 @@ func (h *TaskHandler) Create(c *gin.Context) {
 		return
 	}
 
-	task := h.usecase.Create(c.Request.Context(), req.Title, req.Body, req.Priority)
+	task, err := h.usecase.Create(c.Request.Context(), devUserID, req.Title)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
 
 	c.Header("Location", "/api/v1/tasks/"+strconv.FormatInt(task.ID, 10))
 	c.JSON(http.StatusCreated, task)
 }
 
-// List はタスク一覧を返す。?status=open&limit=20 のようなフィルタを受ける
+// List はタスク一覧を返す。?limit=20&offset=0 のようなページングを受ける
 func (h *TaskHandler) List(c *gin.Context) {
-	status := c.DefaultQuery("status", "all")
-	limitStr := c.DefaultQuery("limit", "20")
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <= 0 || limit > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "limit must be 1..100",
-		})
+	limit, offset, err := parseListQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	tasks := h.usecase.List(c.Request.Context(), status, limit)
-	c.JSON(http.StatusOK, gin.H{"tasks": tasks})
+	tasks, err := h.usecase.List(c.Request.Context(), devUserID, limit, offset)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, tasks)
+}
+
+func parseListQuery(c *gin.Context) (int32, int32, error) {
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil || limit <= 0 || limit > 100 {
+		return 0, 0, errors.New("limit must be 1..100")
+	}
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		return 0, 0, errors.New("offset must be >= 0")
+	}
+	return int32(limit), int32(offset), nil
 }
 
 // Get は ID で特定したタスクを返す
@@ -74,18 +89,16 @@ func (h *TaskHandler) Get(c *gin.Context) {
 		return
 	}
 
-	task, ok := h.usecase.Get(c.Request.Context(), p.ID)
-	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "task not found",
-		})
+	task, err := h.usecase.Get(c.Request.Context(), devUserID, p.ID)
+	if err != nil {
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, task)
 }
 
-// Update は部分更新を反映する
-func (h *TaskHandler) Update(c *gin.Context) {
+// UpdateStatus はステータスのみ更新する。本章では単一フィールド更新に限定
+func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 	var p TaskIDParam
 	if err := c.ShouldBindUri(&p); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -98,15 +111,12 @@ func (h *TaskHandler) Update(c *gin.Context) {
 		return
 	}
 
-	task, ok := h.usecase.Update(
-		c.Request.Context(), p.ID,
-		req.Title, req.Body, req.Priority, req.Status,
-	)
-	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+	err := h.usecase.UpdateStatus(c.Request.Context(), devUserID, p.ID, domain.Status(req.Status))
+	if err != nil {
+		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, task)
+	c.Status(http.StatusNoContent)
 }
 
 // Delete は ID で特定したタスクを削除する
@@ -117,9 +127,24 @@ func (h *TaskHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if !h.usecase.Delete(c.Request.Context(), p.ID) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+	if err := h.usecase.Delete(c.Request.Context(), devUserID, p.ID); err != nil {
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// respondError は Ch 05 でエラーミドルウェアに集約する予定。
+// 本章では Repository が返すドメインエラーを最小限に変換するだけに留める
+func respondError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, domain.ErrTaskNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+	case errors.Is(err, domain.ErrCheckViolation):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid value"})
+	case errors.Is(err, domain.ErrDuplicate):
+		c.JSON(http.StatusConflict, gin.H{"error": "duplicate"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+	}
 }

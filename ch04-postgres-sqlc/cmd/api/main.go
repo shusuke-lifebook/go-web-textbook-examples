@@ -50,8 +50,9 @@ func main() {
 		}
 	}
 
-	repo := repository.NewInMemoryTaskRepo()
-	taskUsecase := usecase.New(repo)
+	repo := repository.NewPostgresTaskRepo(pool)
+	tx := repository.NewTxRunner(pool)
+	taskUsecase := usecase.New(repo, tx)
 	th := handler.NewTaskHandler(taskUsecase)
 
 	limiter := mw.NewIPRateLimiter(rate.Limit(10), 20)

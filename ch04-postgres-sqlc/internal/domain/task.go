@@ -3,13 +3,19 @@ package domain
 
 import "time"
 
-// Task はタスク管理の中核モデル。HTTP も DB も知らない
+type Status string
+
+const (
+	StatusOpen       Status = "open"
+	StatusInProgress Status = "in_progress"
+	StatusDone       Status = "done"
+)
+
 type Task struct {
 	ID        int64     `json:"id"`
+	UserID    int64     `json:"user_id"`
 	Title     string    `json:"title"`
-	Body      string    `json:"body"`
-	Priority  int       `json:"priority"` // 0..3
-	Status    string    `json:"status"`   // "open", "closed"
+	Status    Status    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

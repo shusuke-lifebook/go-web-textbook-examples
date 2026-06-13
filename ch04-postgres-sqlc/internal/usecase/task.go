@@ -3,73 +3,48 @@ package usecase
 
 import (
 	"ch04-postgres-sqlc/internal/domain"
+	"ch04-postgres-sqlc/internal/repository"
 	"context"
-	"time"
 )
 
 // TaskRepository は永続化層との対話を抽象化する。実装は repository パッケージ
 type TaskRepository interface {
-	Create(ctx context.Context, t *domain.Task) error
-	Get(ctx context.Context, id int64) (*domain.Task, bool)
-	List(ctx context.Context, status string, limit int) []*domain.Task
-	Update(ctx context.Context, id int64, fn func(*domain.Task)) (*domain.Task, bool)
-	Delete(ctx context.Context, id int64) bool
+	Create(ctx context.Context, t domain.Task) (domain.Task, error)
+	GetByID(ctx context.Context, userID, id int64) (domain.Task, error)
+	ListByUser(ctx context.Context, userID int64, limit, offset int32) ([]domain.Task, error)
+	UpdateStatus(ctx context.Context, userID, id int64, s domain.Status) error
+	Delete(ctx context.Context, userID, id int64) error
 }
 
 type TaskUsecase struct {
 	repo TaskRepository
+	tx   *repository.TxRunner
 }
 
-func New(repo TaskRepository) *TaskUsecase {
-	return &TaskUsecase{repo: repo}
+func New(repo TaskRepository, tx *repository.TxRunner) *TaskUsecase {
+	return &TaskUsecase{repo: repo, tx: tx}
 }
 
-func (u *TaskUsecase) Create(ctx context.Context, title, body string, priority int) *domain.Task {
-	now := time.Now()
-	t := &domain.Task{
-		Title:     title,
-		Body:      body,
-		Priority:  priority,
-		Status:    "open",
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	_ = u.repo.Create(ctx, t)
-	return t
-}
-
-func (u *TaskUsecase) Get(ctx context.Context, id int64) (*domain.Task, bool) {
-	return u.repo.Get(ctx, id)
-}
-
-func (u *TaskUsecase) List(ctx context.Context, status string, limit int) []*domain.Task {
-	return u.repo.List(ctx, status, limit)
-}
-
-func (u *TaskUsecase) Update(
-	ctx context.Context,
-	id int64,
-	title, body *string,
-	priority *int,
-	status *string,
-) (*domain.Task, bool) {
-	return u.repo.Update(ctx, id, func(t *domain.Task) {
-		if title != nil {
-			t.Title = *title
-		}
-		if body != nil {
-			t.Body = *body
-		}
-		if priority != nil {
-			t.Priority = *priority
-		}
-		if status != nil {
-			t.Status = *status
-		}
-		t.UpdatedAt = time.Now()
+func (u *TaskUsecase) Create(ctx context.Context, userID int64, title string) (domain.Task, error) {
+	return u.repo.Create(ctx, domain.Task{
+		UserID: userID,
+		Title:  title,
+		Status: domain.StatusOpen,
 	})
 }
 
-func (u *TaskUsecase) Delete(ctx context.Context, id int64) bool {
-	return u.repo.Delete(ctx, id)
+func (u *TaskUsecase) Get(ctx context.Context, userID, id int64) (domain.Task, error) {
+	return u.repo.GetByID(ctx, userID, id)
+}
+
+func (u *TaskUsecase) List(ctx context.Context, userID int64, limit, offset int32) ([]domain.Task, error) {
+	return u.repo.ListByUser(ctx, userID, limit, offset)
+}
+
+func (u *TaskUsecase) UpdateStatus(ctx context.Context, userID, id int64, status domain.Status) error {
+	return u.repo.UpdateStatus(ctx, userID, id, status)
+}
+
+func (u *TaskUsecase) Delete(ctx context.Context, userID, id int64) error {
+	return u.repo.Delete(ctx, userID, id)
 }
