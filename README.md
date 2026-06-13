@@ -23,6 +23,7 @@
     - migrate create -ext sql -dir internal/db/migrations -seq create_users
     - migrate create -ext sql -dir internal/db/migrations -seq create_tasks
     - migrate create -ext sql -dir internal/db/migrations -seq create_audits
+    - migrate create -ext sql -dir internal/db/migrations -seq seed_dev_user
 - [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html)
   - go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
   - go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
