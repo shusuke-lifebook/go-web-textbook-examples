@@ -1,0 +1,73 @@
+package main
+
+import (
+	"ch05-validation/internal/db"
+	"ch05-validation/internal/handler"
+	mw "ch05-validation/internal/middleware"
+	"ch05-validation/internal/repository"
+	"ch05-validation/internal/router"
+	"ch05-validation/internal/usecase"
+	"context"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"golang.org/x/time/rate"
+)
+
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		dsn = "postgres://app:app@localhost:5432/app?sslmode=disable"
+	}
+
+	pool, err := db.NewPool(ctx, dsn)
+	if err != nil {
+		logger.Error("init pool", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	pingCtx, pingCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer pingCancel()
+	if err := pool.Ping(pingCtx); err != nil {
+		logger.Error("ping db", "error", err)
+		os.Exit(1)
+	}
+
+	// 開発環境向け：起動時にマイグレーションを流す
+	if os.Getenv("RUN_MIGRATIONS") == "true" {
+		if err := db.RunMigrations(dsn); err != nil {
+			logger.Error("run migrations", "error", err)
+			os.Exit(1)
+		}
+	}
+
+	repo := repository.NewPostgresTaskRepo(pool)
+	tx := repository.NewTxRunner(pool)
+	uc := usecase.New(repo, tx)
+	th := handler.NewTaskHandler(uc)
+
+	limiter := mw.NewIPRateLimiter(rate.Limit(10), 20)
+	// ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	// defer cancel()
+	go limiter.StartGC(ctx, 5*time.Minute, 1*time.Hour)
+
+	r := router.New(router.Deps{
+		Logger:      logger,
+		RateLimiter: limiter,
+		TaskHandler: th,
+		Production:  os.Getenv("APP_ENV") == "production",
+	})
+	if err := r.Run(":8080"); err != nil {
+		logger.Error("server exited", "error", err)
+		os.Exit(1)
+	}
+}
