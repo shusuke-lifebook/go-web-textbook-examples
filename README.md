@@ -27,6 +27,10 @@
 - [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html)
   - go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
   - go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+- [universal-translator](https://github.com/go-playground/universal-translator)
+  - go get github.com/go-playground/universal-translator
+- [locales](https://github.com/go-playground/locales/)
+  - go get github.com/go-playground/locales
 
 ## Ch04-postgres-sqlc
 - Postgresql(Docker)の起動
@@ -39,3 +43,4 @@
     - 2/u create_tasks (126.458135ms)
 
 ## Ch05-validation
+
