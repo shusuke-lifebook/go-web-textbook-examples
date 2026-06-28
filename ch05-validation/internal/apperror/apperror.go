@@ -24,3 +24,6 @@ func (e *AppError) Error() string {
 	}
 	return e.Code + ": " + e.Message
 }
+
+// Unwrapでerrors.Is / errors.Asの連鎖を通す
+func (e *AppError) Unwrap() error { return e.Cause }
